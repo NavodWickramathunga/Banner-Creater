@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dialog Pay — Splash Banner Editor</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Dialog Pay splash banner</h1>
+  <p class="lede">Drag anything on the banner to place it. Add as many lines as you need, round the corners, and export at any size.</p>
+
+  <div class="cols">
+    <div class="stage">
+      <div class="frame"><canvas id="preview" width="600" height="600"></canvas></div>
+      <div class="meta" id="meta">300 × 300 px</div>
+      <div class="btns" style="margin-top:14px">
+        <button class="action primary" id="dlGif">Download GIF</button>
+        <button class="action ghost" id="dlPng">Download PNG</button>
+      </div>
+      <div class="warn" id="warn"></div>
+      <div class="hint" style="margin-top:12px">Drag a line, the button or the logo straight on the preview. It snaps to the centre and to the side margins.</div>
+    </div>
+
+    <div class="controls">
+      <fieldset>
+        <legend>Preset</legend>
+        <div class="field">
+          <select id="preset"><option value="">Choose a journey…</option></select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>AI copy</legend>
+        <div class="card">
+          <div class="field" style="margin-bottom:10px">
+            <label for="brief">What is this banner for?</label>
+            <textarea id="brief" placeholder="e.g. push registered users who have not linked a bank account yet to link Just Pay, reward is 10GB monthly draw"></textarea>
+          </div>
+          <div class="row2">
+            <div class="field" style="margin-bottom:10px">
+              <label for="apiKey">Anthropic API key</label>
+              <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
+            </div>
+            <div class="field" style="margin-bottom:10px">
+              <label for="model">Model</label>
+              <input type="text" id="model" value="claude-sonnet-4-6">
+            </div>
+          </div>
+          <div class="btns" style="margin-top:0">
+            <button class="action primary" id="aiGen" style="padding:9px 14px;font-size:12px">Write 3 options</button>
+            <button class="action ghost" id="aiShort" style="padding:9px 14px;font-size:12px">Shorten what's on the banner</button>
+          </div>
+          <div class="status" id="aiStatus"></div>
+          <div id="aiOut" style="margin-top:10px"></div>
+          <div class="hint">The key is held in this page only, never saved to disk, and is sent straight to Anthropic. Close the tab and it's gone.</div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Lines</legend>
+        <div id="lines"></div>
+        <button class="add" id="addLine">+ Add a line</button>
+        <div class="hint"><strong>X</strong> and <strong>Y</strong> are the anchor point on a 300px grid, so dragging on the preview updates them. Alignment sets how the text sits around that anchor.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Button</legend>
+        <div class="card">
+          <div class="top"><input type="text" id="btnText" value="CREATE NOW"></div>
+          <div class="grid4">
+            <div><label>Size</label><input type="number" id="btnSize" min="6" max="60" step="0.5" value="22"></div>
+            <div><label>X</label><input type="number" id="btnX" min="0" max="300" step="1" value="150"></div>
+            <div><label>Y</label><input type="number" id="btnY" min="0" max="300" step="1" value="216"></div>
+            <div><label>Text align</label>
+              <div class="seg" id="btnAlign">
+                <button type="button" data-align="left">Left</button>
+                <button type="button" data-align="center" class="on">Centre</button>
+                <button type="button" data-align="right">Right</button>
+              </div>
+            </div>
+          </div>
+          <div class="grid3">
+            <div><label>Width</label><input type="number" id="btnW" min="60" max="290" step="1" value="240"></div>
+            <div><label>Height</label><input type="number" id="btnH" min="20" max="90" step="1" value="52"></div>
+          </div>
+          <div class="grid3">
+            <div><label>Corner radius</label><input type="number" id="btnR" min="0" max="45" step="1" value="12"></div>
+            <div class="blinkrow" style="margin-top:0;padding-bottom:8px">
+              <input type="checkbox" id="btnShow" checked><span>Show button</span></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Logo</legend>
+        <div class="card">
+          <div class="grid4" style="grid-template-columns:1fr 1fr 1fr">
+            <div><label>Width</label><input type="number" id="logoW" min="40" max="280" step="1" value="167"></div>
+            <div><label>X</label><input type="number" id="logoX" min="0" max="300" step="1" value="150"></div>
+            <div><label>Y (top)</label><input type="number" id="logoY" min="0" max="290" step="1" value="15"></div>
+          </div>
+          <div class="blinkrow"><input type="checkbox" id="logoShow" checked><span>Show logo</span></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Canvas</legend>
+        <div class="row2">
+          <div class="field">
+            <label for="outSize">Export size (px)</label>
+            <input type="number" id="outSize" min="100" max="2000" step="10" value="300">
+          </div>
+          <div class="field">
+            <label for="radius">Corner radius</label>
+            <input type="number" id="radius" min="0" max="150" step="1" value="0">
+            <div class="hint">Corners become transparent, so the banner sits cleanly on any background. Works in both GIF and PNG.</div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="bg">Background</label>
+            <input type="text" id="bg" value="#FFFFFF">
+          </div>
+          <div class="field">
+            <label for="delay">Frame delay (ms)</label>
+            <input type="number" id="delay" min="20" max="5000" step="10" value="1000">
+          </div>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

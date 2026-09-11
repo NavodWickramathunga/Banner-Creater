@@ -1,0 +1,11 @@
+{
+  "name": "dialogpay-banner-editor",
+  "version": "1.0.0",
+  "description": "300x300 Dialog Pay splash banner editor with GIF/PNG export",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "build": "node build.mjs"
+  },
+  "private": true
+}
