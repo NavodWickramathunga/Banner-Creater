@@ -1,4 +1,4 @@
-import { GRID } from './config.js';
+import { GRID, FONTS } from './config.js';
 import { el, num } from './dom.js';
 import { state } from './state.js';
 import { draw, bandFor } from './draw.js';
@@ -33,16 +33,17 @@ function drawSelection() {
 /** Warn when the fit logic had to shrink something. */
 function checkFit() {
   const warn = [];
+  const family = (FONTS[state.lang] || FONTS.en) + ', sans-serif';
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   state.lines.forEach((L, i) => {
     if (!L.text) return;
-    ctx.font = L.size + 'px BannerFont, sans-serif';
+    ctx.font = L.size + 'px ' + family;
     if (ctx.measureText(L.text).width > bandFor(L)) warn.push('line ' + (i + 1));
   });
   const t = el('btnText').value;
   if (t) {
-    ctx.font = num('btnSize', 22) + 'px BannerFont, sans-serif';
+    ctx.font = num('btnSize', 22) + 'px ' + family;
     if (ctx.measureText(t).width > num('btnW', 240) - 40) warn.push('button');
   }
   ctx.restore();

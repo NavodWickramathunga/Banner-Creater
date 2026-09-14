@@ -5,7 +5,6 @@ import { logoImg } from './draw.js';
 import { render } from './render.js';
 import { renderControls, initControls } from './controls.js';
 import { initDrag } from './drag.js';
-import { initAI } from './ai.js';
 import { initExport } from './export.js';
 import { initHistory, commit, commitDebounced } from './history.js';
 import { initLayoutsPanel } from './layouts-panel.js';
@@ -47,14 +46,26 @@ function initInputs() {
   });
 }
 
+function initLanguage() {
+  const seg = el('langSeg');
+  seg.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      state.lang = b.dataset.lang;
+      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      render();
+      commit();
+    });
+  });
+}
+
 function boot() {
   state.lines = PRESETS[3][1].map(makeLine);   // Savings creation, the original artwork
   initPresets();
   initInputs();
   initControls();
   initDrag();
-  initAI();
   initExport();
+  initLanguage();
   initHistory();
   initLayoutsPanel();
   renderControls();
@@ -63,7 +74,11 @@ function boot() {
   logoImg.src = LOGO_SRC;
 
   if (document.fonts) {
-    document.fonts.load('25px BannerFont').then(render);
+    Promise.all([
+      document.fonts.load('25px BannerFont'),
+      document.fonts.load('25px SinhalaFont'),
+      document.fonts.load('25px TamilFont')
+    ]).then(render);
     document.fonts.ready.then(render);
   }
   render();

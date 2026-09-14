@@ -1,16 +1,21 @@
-import { GRID, MARGIN, LOGO_RATIO, BTN_GRADIENT } from './config.js';
+import { GRID, MARGIN, LOGO_RATIO, BTN_GRADIENT, FONTS } from './config.js';
 import { el, num } from './dom.js';
 import { state } from './state.js';
 
 export const logoImg = new Image();
 
+/** The font-family stack for whichever language is currently selected. */
+function fontFamily() {
+  return (FONTS[state.lang] || FONTS.en) + ', sans-serif';
+}
+
 /** Shrink a size until the text fits maxWidth. Returns the size actually used. */
 export function fitText(c, text, size, maxWidth) {
   let s = size;
-  c.font = s + 'px BannerFont, sans-serif';
+  c.font = s + 'px ' + fontFamily();
   while (c.measureText(text).width > maxWidth && s > 6) {
     s -= 0.5;
-    c.font = s + 'px BannerFont, sans-serif';
+    c.font = s + 'px ' + fontFamily();
   }
   return s;
 }
@@ -61,7 +66,7 @@ export function draw(c, scale, showBlink, collect) {
     if (L.blink && !showBlink) return;
     const s = fitText(c, L.text, L.size, bandFor(L));
     c.fillStyle = L.color;
-    c.font = s + 'px BannerFont, sans-serif';
+    c.font = s + 'px ' + fontFamily();
     c.textAlign = L.align;
     c.fillText(L.text, L.x, L.y);
     if (collect) {
@@ -86,7 +91,7 @@ export function draw(c, scale, showBlink, collect) {
     if (t) {
       const cs = fitText(c, t, num('btnSize', 22), w - pad * 2);
       c.fillStyle = '#fff';
-      c.font = cs + 'px BannerFont, sans-serif';
+      c.font = cs + 'px ' + fontFamily();
       c.textAlign = state.btnAlign;
       const cx = state.btnAlign === 'left' ? x + pad
                : state.btnAlign === 'right' ? x + w - pad

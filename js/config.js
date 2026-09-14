@@ -9,6 +9,16 @@ export const BTN_GRADIENT = ["#4C055E", "#BB0149"];
 export const LOGO_SRC = "assets/logo.png";
 export const LOGO_RATIO = 44 / 167;   // height / width of the supplied logo
 
+// One @font-face per language, so switching language switches the glyphs
+// available to the canvas. BannerFont (Poppins Bold) has no Sinhala or Tamil
+// glyphs, hence the dedicated Noto Sans subsets.
+export const FONTS = { en: "BannerFont", si: "SinhalaFont", ta: "TamilFont" };
+export const LANGUAGES = [
+  ["en", "English"],
+  ["si", "සිංහල"],
+  ["ta", "தமிழ்"]
+];
+
 // Journey presets: [label, lines, cta]
 export const PRESETS = [
   ["eZ Cash creation", ["CREATE YOUR", "eZ CASH ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "CREATE NOW"],

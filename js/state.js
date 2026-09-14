@@ -8,8 +8,9 @@ import { el, setSeg } from './dom.js';
 export const state = {
   lines: [],
   btnAlign: 'center',
-  selected: null,   // { kind:'line', idx } | { kind:'button' } | { kind:'logo' } | null
-  hits: []          // bounding boxes from the last draw, used for hit testing
+  lang: 'en',        // 'en' | 'si' | 'ta' — picks the @font-face draw() uses
+  selected: null,     // { kind:'line', idx } | { kind:'button' } | { kind:'logo' } | null
+  hits: []           // bounding boxes from the last draw, used for hit testing
 };
 
 let uid = 0;

@@ -27,7 +27,6 @@ const MODULE_ORDER = [
   'js/history.js',
   'js/layouts-panel.js',
   'js/drag.js',
-  'js/ai.js',
   'js/export.js',
   'js/main.js'
 ];
@@ -42,19 +41,30 @@ function stripModuleSyntax(src) {
     .replace(/^(\s*)export\s+/gm, '$1');            // unwrap `export const/function`
 }
 
-const [css, html, logo, font] = await Promise.all([
+const [css, html, logo, font, sinhalaFont, tamilFont] = await Promise.all([
   read('css/styles.css'),
   read('index.html'),
   b64('assets/logo.png'),
-  b64('assets/banner-font.woff2')
+  b64('assets/banner-font.woff2'),
+  b64('assets/sinhala-font.woff2'),
+  b64('assets/tamil-font.woff2')
 ]);
 
 const js = (await Promise.all(MODULE_ORDER.map(read))).map(stripModuleSyntax).join('\n');
 
-const inlineCss = css.replace(
-  "src:url('../assets/banner-font.woff2') format('woff2');",
-  `src:url(data:font/woff2;base64,${font}) format('woff2');`
-);
+const inlineCss = css
+  .replace(
+    "src:url('../assets/banner-font.woff2') format('woff2');",
+    `src:url(data:font/woff2;base64,${font}) format('woff2');`
+  )
+  .replace(
+    "src:url('../assets/sinhala-font.woff2') format('woff2');",
+    `src:url(data:font/woff2;base64,${sinhalaFont}) format('woff2');`
+  )
+  .replace(
+    "src:url('../assets/tamil-font.woff2') format('woff2');",
+    `src:url(data:font/woff2;base64,${tamilFont}) format('woff2');`
+  );
 
 // the bundled build reads the logo from a data URI rather than assets/
 const inlineJs = js.replace(

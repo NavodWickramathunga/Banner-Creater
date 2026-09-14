@@ -3,6 +3,16 @@
   src:url('../assets/banner-font.woff2') format('woff2');
   font-weight:700;font-style:normal;font-display:block;
 }
+@font-face{
+  font-family:'SinhalaFont';
+  src:url('../assets/sinhala-font.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:block;
+}
+@font-face{
+  font-family:'TamilFont';
+  src:url('../assets/tamil-font.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:block;
+}
   :root{
     --plum:#5D0253; --magenta:#D3064F; --ink:#2A1B29;
     --line:#E4DCE3; --paper:#FBF8FA; --mute:#8A7788;
