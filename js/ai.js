@@ -2,6 +2,7 @@ import { el } from './dom.js';
 import { state, applyCopy } from './state.js';
 import { render } from './render.js';
 import { renderControls } from './controls.js';
+import { commit } from './history.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -59,6 +60,7 @@ function showOptions(options) {
       applyCopy(o.lines.filter(Boolean), o.cta);
       renderControls();
       render();
+      commit();
       el('aiStatus').textContent = 'Applied.';
     });
     out.appendChild(b);

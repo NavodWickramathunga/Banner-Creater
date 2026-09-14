@@ -23,6 +23,20 @@ export function newLine(y) {
   return { id: ++uid, text: 'NEW LINE', size: 18, x: GRID / 2, y, color: PLUM, align: 'center', blink: false };
 }
 
+/** Rebuild a line from a plain object (a saved layout, an undo step). Always gets a fresh id. */
+export function cloneLine(data) {
+  return {
+    id: ++uid,
+    text: data.text ?? '',
+    size: data.size ?? 18,
+    x: data.x ?? GRID / 2,
+    y: data.y ?? 150,
+    color: data.color || PLUM,
+    align: data.align || 'center',
+    blink: !!data.blink
+  };
+}
+
 /** Replace all copy at once, used by presets and by the AI panel. */
 export function applyCopy(texts, cta) {
   state.lines = texts.map(makeLine);

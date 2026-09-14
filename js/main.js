@@ -7,6 +7,8 @@ import { renderControls, initControls } from './controls.js';
 import { initDrag } from './drag.js';
 import { initAI } from './ai.js';
 import { initExport } from './export.js';
+import { initHistory, commit, commitDebounced } from './history.js';
+import { initLayoutsPanel } from './layouts-panel.js';
 
 const LIVE_INPUTS = [
   'btnText', 'btnSize', 'btnX', 'btnY', 'btnW', 'btnH', 'btnR',
@@ -28,17 +30,19 @@ function initPresets() {
     applyCopy(p[1], p[2]);
     renderControls();
     render();
+    commit();
   });
 }
 
 function initInputs() {
-  LIVE_INPUTS.forEach(id => el(id).addEventListener('input', render));
-  ['btnShow', 'logoShow'].forEach(id => el(id).addEventListener('change', render));
+  LIVE_INPUTS.forEach(id => el(id).addEventListener('input', () => { render(); commitDebounced(); }));
+  ['btnShow', 'logoShow'].forEach(id => el(id).addEventListener('change', () => { render(); commit(); }));
   el('btnAlign').querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => {
       state.btnAlign = b.dataset.align;
       setSeg(el('btnAlign'), state.btnAlign);
       render();
+      commit();
     });
   });
 }
@@ -51,6 +55,8 @@ function boot() {
   initDrag();
   initAI();
   initExport();
+  initHistory();
+  initLayoutsPanel();
   renderControls();
 
   logoImg.onload = render;

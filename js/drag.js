@@ -3,6 +3,7 @@ import { el, num } from './dom.js';
 import { state } from './state.js';
 import { canvas, render } from './render.js';
 import { renderControls } from './controls.js';
+import { commit } from './history.js';
 
 const SNAP = 4;               // grid units
 const SNAP_X = [MARGIN, GRID / 2, GRID - MARGIN];
@@ -74,5 +75,6 @@ export function initDrag() {
     canvas.releasePointerCapture(e.pointerId);
     renderControls();   // push the dragged X/Y back into the number fields
     render();
+    commit();            // a no-op if nothing actually moved
   });
 }

@@ -2,6 +2,7 @@ import { GRID, PLUM, MAGENTA } from './config.js';
 import { el, setSeg } from './dom.js';
 import { state, newLine } from './state.js';
 import { render } from './render.js';
+import { commit, commitDebounced } from './history.js';
 
 const CARD_HTML = `
   <div class="top">
@@ -67,6 +68,7 @@ function lineCard(L, i) {
       else if (k === 'size' || k === 'x' || k === 'y') L[k] = parseFloat(input.value) || 0;
       else L[k] = input.value;
       render();
+      if (ev === 'change') commit(); else commitDebounced();
     });
   });
 
@@ -75,6 +77,7 @@ function lineCard(L, i) {
       L.align = b.dataset.align;
       setSeg(card.querySelector('.seg'), L.align);
       render();
+      commit();
     });
   });
 
@@ -86,6 +89,7 @@ function lineCard(L, i) {
       if (act === 'down' && i < lines.length - 1) swap(i, i + 1);
       renderControls();
       render();
+      commit();
     });
   });
 
@@ -108,5 +112,6 @@ export function initControls() {
     state.lines.push(newLine(Math.min(lastY + 26, GRID - 5)));
     renderControls();
     render();
+    commit();
   });
 }

@@ -31,6 +31,12 @@ function slug() {
   return (t || 'dialogpay-banner').slice(0, 50);
 }
 
+/** The typed file name wins when there is one; otherwise fall back to the banner copy. */
+function fileBase() {
+  const custom = el('fileName').value.trim().replace(/[/\\]/g, '');
+  return custom || slug();
+}
+
 const outSize = () => Math.max(50, Math.round(num('outSize', 300)));
 
 export function initExport() {
@@ -42,10 +48,10 @@ export function initExport() {
       ? [frameData(size, true), frameData(size, false)]
       : [frameData(size, true)];
     const bytes = encodeGIF(frames, size, size, Math.round(delay / 10));
-    download(new Blob([bytes], { type: 'image/gif' }), slug() + '.gif');
+    download(new Blob([bytes], { type: 'image/gif' }), fileBase() + '.gif');
   });
 
   el('dlPng').addEventListener('click', () => {
-    offscreen(outSize(), true).toBlob(b => download(b, slug() + '.png'), 'image/png');
+    offscreen(outSize(), true).toBlob(b => download(b, fileBase() + '.png'), 'image/png');
   });
 }
