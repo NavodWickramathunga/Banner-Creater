@@ -85,3 +85,12 @@
 .tick{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;line-height:1.3}
 .tick input{margin:0;flex:none}
 label.sub{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.6;margin-top:6px}
+
+/* Single-column layout: the stage stacks ABOVE the controls, so leaving it
+   sticky pins the preview and its buttons over the panels below — they end up
+   unclickable where they appear. Sticky only makes sense beside the controls.
+   This block must stay after the base .stage rule to win on source order. */
+@media (max-width:880px){
+  .stage{position:static}
+  .grid4{grid-template-columns:1fr 1fr}
+}
