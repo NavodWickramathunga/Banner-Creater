@@ -1,0 +1,794 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 944aa9e..2eff476 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -30,6 +30,7 @@ Vanilla ES modules, no framework, no dependencies, no build step for development
+ index.html          markup and control ids only, no logic
+ css/styles.css      all styling; @font-face points at assets/*.woff2
+ js/config.js        grid size, brand colours, journey presets, per-language fonts, defaults
++js/themes.js        colour treatments (background, copy, accent, button) as one-click themes
+ js/dom.js           el() / num() / setSeg() helpers
+ js/state.js         the lines array, selection, button alignment, language
+ js/draw.js          all canvas painting; the single source of truth for layout
+@@ -40,6 +41,8 @@ js/layout.js        capture/apply the full editor state as one plain object
+ js/history.js       undo/redo stack built on layout.js snapshots
+ js/layouts-panel.js named saved layouts (localStorage) plus JSON export/import
+ js/export.js        GIF and PNG download, with an optional custom file name
++js/zip.js           store-only ZIP writer used by batch export
++js/batch.js         batch export: journeys x languages x themes, zipped in one pass
+ js/gif-encoder.js   self-contained animated GIF encoder
+ js/main.js          wiring and boot
+ ```
+@@ -120,9 +123,49 @@ they're a few dozen KB rather than a full multi-script family.
+   dependents. The bundler concatenates and strips module syntax; it relies on
+   every top-level name being unique across `js/`.
+ 
++### Themes
++
++`js/themes.js` holds the colour treatments. A theme is background + body colour
+++ accent colour + button gradient + button label colour. `applyTheme()` in
++`state.js` repaints the background input and recolours every line — blinking
++(emphasis) lines take the accent, the rest take the body colour — so the
++hierarchy survives the swap. `draw()` reads the button gradient from
++`activeTheme()`, never from a constant.
++
++Themes exist because creative fatigue is mostly visual. The same layout in the
++same colours stops registering after roughly two weeks even when the copy
++changes, so a one-click recolour is the cheapest refresh available.
++
++`themeId` is part of the layout snapshot, so saved layouts, imports and undo
++steps all carry their treatment with them.
++
++### Batch export
++
++`js/batch.js` renders every ticked journey x language x theme and hands back one
++ZIP. It drives the same `applyCopy()`/`applyTheme()` path the operator would
++click and the same `gifBytes()`/`pngBytes()` the download buttons use, so a
++batch file is byte-identical to a manual export. The live editor state is
++snapshotted with `captureLayout()` first and restored in a `finally` block.
++
++It uses each journey's default line positions rather than whatever is on the
++canvas, because the presets differ in line count and force-fitting one geometry
++across all of them produces overflow.
++
++`js/zip.js` is store-only on purpose: GIF and PNG are already compressed, so
++deflate would cost CPU for nothing.
++
++## Copy rules
++
++Reward copy is tied to QR transactions only, never to opening a savings account
++(CBSL). The mechanic is 1GB per QR payment, first 3 payments each day, up to
++10GB a month. Write "up to 10GB a month", never "10GB every month" — day 4 pays
++only 1GB, so a user doing 3 scans a day for 4 days would otherwise expect 12GB.
++Account-creation presets carry no prize claim at all.
++
+ ## Ideas not yet built
+ 
+ - Other placement sizes (leaderboard, half-page) — the grid constant would need
+   to become a width/height pair.
+-- Batch export: one click producing all six journeys from the same layout.
+ - Rename/reorder for saved layouts in the Layouts panel (currently save/load/delete only).
++- A per-theme logo variant: the plum and magenta themes would read better with a
++  reversed (white) logo lockup than the standard one on a white chip.
+diff --git a/build.mjs b/build.mjs
+index 70c845a..e37b360 100644
+--- a/build.mjs
++++ b/build.mjs
+@@ -18,6 +18,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
+ const MODULE_ORDER = [
+   'js/gif-encoder.js',
+   'js/config.js',
++  'js/themes.js',
+   'js/dom.js',
+   'js/state.js',
+   'js/layout.js',
+@@ -28,6 +29,8 @@ const MODULE_ORDER = [
+   'js/layouts-panel.js',
+   'js/drag.js',
+   'js/export.js',
++  'js/zip.js',
++  'js/batch.js',
+   'js/main.js'
+ ];
+ 
+diff --git a/css/styles.css b/css/styles.css
+index 0fd1d78..589fa2a 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -79,3 +79,9 @@
+   .opt b{display:block;font-size:13px;font-weight:800;color:var(--plum);letter-spacing:.01em}
+   .status{font-size:12px;color:var(--mute);margin-top:8px;min-height:15px}
+   .status.err{color:var(--magenta);font-weight:600}
++
++/* Batch export tick lists and section sub-labels */
++.ticks{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 10px;margin:4px 0 10px}
++.tick{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;line-height:1.3}
++.tick input{margin:0;flex:none}
++label.sub{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.6;margin-top:6px}
+diff --git a/index.html b/index.html
+index 4b79cff..ee76658 100644
+--- a/index.html
++++ b/index.html
+@@ -28,6 +28,14 @@
+         <button class="action primary" id="dlGif">Download GIF</button>
+         <button class="action ghost" id="dlPng">Download PNG</button>
+       </div>
++      <div class="seg" id="sizeSeg" style="grid-template-columns:repeat(4,1fr);margin-top:8px">
++        <button type="button" data-size="300">300</button>
++        <button type="button" data-size="600">600</button>
++        <button type="button" data-size="1200" class="on">1200</button>
++        <button type="button" data-size="1500">1500</button>
++      </div>
++      <label class="tick" style="margin-top:8px"><input type="checkbox" id="fitBudget" checked> <span>Keep under 500 KB (CleverTap limit)</span></label>
++      <div class="status" id="exportStatus"></div>
+       <div class="warn" id="warn"></div>
+       <div class="hint" style="margin-top:12px">Drag a line, the button or the logo straight on the preview. It snaps to the centre and to the side margins. Ctrl+Z / Ctrl+Shift+Z undo and redo.</div>
+     </div>
+@@ -58,6 +66,14 @@
+         </div>
+       </fieldset>
+ 
++      <fieldset>
++        <legend>Theme</legend>
++        <div class="card">
++          <div class="seg" id="themeSeg" style="grid-template-columns:repeat(2,1fr)"></div>
++          <div class="hint">Recolours the background, the copy and the button in one click. The fastest way to refresh a banner that has gone stale without rewriting the copy.</div>
++        </div>
++      </fieldset>
++
+       <fieldset>
+         <legend>Language</legend>
+         <div class="card">
+@@ -70,6 +86,32 @@
+         </div>
+       </fieldset>
+ 
++      <fieldset>
++        <legend>Batch export</legend>
++        <div class="card" id="batchPanel">
++          <label class="sub">Journeys</label>
++          <div class="ticks" id="batchPresets"></div>
++          <label class="sub">Languages</label>
++          <div class="ticks" id="batchLangs"></div>
++          <label class="sub">Themes</label>
++          <div class="ticks" id="batchThemes"></div>
++          <div class="grid4" style="margin-top:8px">
++            <div><label>Format</label>
++              <select id="batchFormat">
++                <option value="both">GIF + PNG</option>
++                <option value="gif">GIF only</option>
++                <option value="png">PNG only</option>
++              </select>
++            </div>
++          </div>
++          <div class="btns" style="margin-top:0">
++            <button class="action primary" id="batchRun" style="padding:9px 14px;font-size:12px">Export all as ZIP</button>
++          </div>
++          <div class="status" id="batchStatus"></div>
++          <div class="hint">Renders every ticked combination at the export size above and downloads them as one ZIP. Uses each journey's default line positions, not whatever is on the canvas right now.</div>
++        </div>
++      </fieldset>
++
+       <fieldset>
+         <legend>Lines</legend>
+         <div id="lines"></div>
+@@ -122,7 +164,7 @@
+         <div class="row2">
+           <div class="field">
+             <label for="outSize">Export size (px)</label>
+-            <input type="number" id="outSize" min="100" max="2000" step="10" value="300">
++            <input type="number" id="outSize" min="100" max="2000" step="10" value="1200">
+           </div>
+           <div class="field">
+             <label for="radius">Corner radius</label>
+diff --git a/js/batch.js b/js/batch.js
+new file mode 100644
+index 0000000..f646cfa
+--- /dev/null
++++ b/js/batch.js
+@@ -0,0 +1,115 @@
++import { PRESETS, LANGUAGES, BUTTON_DEFAULTS } from './config.js';
++import { THEMES } from './themes.js';
++import { el } from './dom.js';
++import { state, applyCopy, applyTheme, resetButton } from './state.js';
++import { captureLayout, applyLayout } from './layout.js';
++import { render } from './render.js';
++import { renderControls } from './controls.js';
++import { encodeBudgeted, download, outSize } from './export.js';
++import { makeZip } from './zip.js';
++
++/**
++ * Batch export: every ticked journey × language × theme, rendered and zipped in
++ * one pass.
++ *
++ * The daily job is not "make a banner", it's "make the same message across six
++ * journeys in three languages". Doing that by hand is six preset clicks, three
++ * language clicks and eighteen downloads. This does it in one.
++ *
++ * Each combination runs through the same applyCopy/applyTheme path the operator
++ * would click, then the same gifBytes()/pngBytes() the download buttons use, so
++ * a batch file is byte-identical to what a manual export would have produced.
++ * The editor's own state is snapshotted first and restored at the end.
++ */
++
++const batchSlug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
++
++function tickList(host, items, checkedIds) {
++  host.innerHTML = '';
++  items.forEach(([value, label]) => {
++    const id = host.id + '-' + value;
++    const wrap = document.createElement('label');
++    wrap.className = 'tick';
++    wrap.innerHTML = `<input type="checkbox" id="${id}" value="${value}"> <span></span>`;
++    wrap.querySelector('span').textContent = label;
++    wrap.querySelector('input').checked = checkedIds.includes(String(value));
++    host.appendChild(wrap);
++  });
++}
++
++const ticked = host => [...host.querySelectorAll('input:checked')].map(i => i.value);
++
++/** Yield to the browser so the progress line actually repaints between items. */
++const breathe = () => new Promise(r => setTimeout(r, 0));
++
++export function initBatch() {
++  const host = el('batchPanel');
++  if (!host) return;
++
++  const presetHost = el('batchPresets');
++  const langHost = el('batchLangs');
++  const themeHost = el('batchThemes');
++  const status = el('batchStatus');
++
++  tickList(presetHost, PRESETS.map((p, i) => [i, p[0]]), PRESETS.map((_, i) => String(i)));
++  tickList(langHost, LANGUAGES, ['en']);
++  tickList(themeHost, THEMES.map(t => [t.id, t.label]), [state.themeId]);
++
++  el('batchRun').addEventListener('click', async () => {
++    const presets = ticked(presetHost).map(Number);
++    const langs = ticked(langHost);
++    const themes = ticked(themeHost);
++    const format = el('batchFormat').value;
++
++    if (!presets.length || !langs.length || !themes.length) {
++      status.textContent = 'Tick at least one journey, language and theme.';
++      return;
++    }
++
++    const snapshot = captureLayout();
++    const files = [];
++    const oversize = [];
++    const total = presets.length * langs.length * themes.length;
++    let done = 0;
++
++    try {
++      for (const pi of presets) {
++        const [label, lines, cta] = PRESETS[pi];
++        for (const lang of langs) {
++          for (const themeId of themes) {
++            resetButton(BUTTON_DEFAULTS);
++            applyCopy(lines, cta);
++            state.lang = lang;
++            applyTheme(themeId);
++            render();
++            await breathe();
++
++            const base = `${batchSlug(label)}_${lang}_${themeId}`;
++            for (const fmt of ['gif', 'png']) {
++              if (format !== 'both' && format !== fmt) continue;
++              const r = await encodeBudgeted(fmt, outSize());
++              if (!r.fits) oversize.push(base + '.' + fmt);
++              files.push({ name: base + '.' + fmt, data: r.data });
++            }
++
++            done++;
++            status.textContent = `Rendering ${done} of ${total}…`;
++            await breathe();
++          }
++        }
++      }
++
++      const stamp = new Date().toISOString().slice(0, 10);
++      download(makeZip(files), `dialogpay-banners_${stamp}.zip`);
++      status.textContent = `${files.length} file${files.length === 1 ? '' : 's'} exported.`
++        + (oversize.length ? ` ${oversize.length} still over 500 KB — try a flatter theme.` : '');
++    } catch (err) {
++      console.error(err);
++      status.textContent = 'Export failed — see the browser console.';
++    } finally {
++      applyLayout(snapshot);
++      renderControls();
++      render();
++    }
++  });
++}
+diff --git a/js/config.js b/js/config.js
+index 05cfd37..0551ef7 100644
+--- a/js/config.js
++++ b/js/config.js
+@@ -20,13 +20,20 @@ export const LANGUAGES = [
+ ];
+ 
+ // Journey presets: [label, lines, cta]
++//
++// Reward copy is tied to QR transactions only, never to opening a savings
++// account: 1GB per QR payment, first 3 payments each day, up to 10GB a month.
++// Keep account-creation presets free of any prize claim.
+ export const PRESETS = [
+-  ["eZ Cash creation", ["CREATE YOUR", "eZ CASH ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "CREATE NOW"],
+-  ["Just Pay",         ["LINK YOUR", "BANK ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "LINK NOW"],
+-  ["1st QR payment",   ["MAKE YOUR", "1ST QR PAYMENT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "SCAN & PAY NOW"],
+-  ["Savings creation", ["CREATE YOUR DIGITAL", "SAVINGS ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "CREATE NOW"],
+-  ["Top up savings",   ["TOP UP YOUR", "SAVINGS ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "TOP UP NOW"],
+-  ["Top up eZ Cash",   ["TOP UP YOUR", "eZ CASH ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "TOP UP NOW"]
++  ["eZ Cash creation",  ["CREATE YOUR", "eZ CASH ACCOUNT", "GET 1GB", "INSTANTLY"], "GET STARTED"],
++  ["Just Pay",          ["LINK YOUR", "BANK ACCOUNT", "PAY STRAIGHT FROM", "YOUR OWN BANK"], "LINK NOW"],
++  ["Savings creation",  ["OPEN YOUR", "DIGITAL SAVINGS", "ACCOUNT", "RIGHT INSIDE MYDIALOG"], "CREATE NOW"],
++  ["QR — first scan",   ["EVERY SCAN", "= 1GB", "FIRST 3 QR PAYMENTS DAILY", "UP TO 10GB A MONTH"], "SCAN & PAY"],
++  ["QR — daily habit",  ["3 SCANS.", "3GB. EVERY DAY.", "1GB PER QR PAYMENT", "UP TO 10GB A MONTH"], "START SCANNING"],
++  ["QR — win back",     ["YOUR 1GB IS", "ONE SCAN AWAY", "EVERY QR PAYMENT EARNS DATA", "UP TO 10GB A MONTH"], "SCAN NOW"],
++  ["QR — heavy user",   ["UP TO", "10GB A MONTH", "1GB PER QR PAYMENT", "FIRST 3 PAYMENTS EACH DAY"], "PAY WITH QR"],
++  ["Top up savings",    ["TOP UP YOUR", "SAVINGS ACCOUNT", "READY FOR YOUR", "NEXT QR PAYMENT"], "TOP UP NOW"],
++  ["Top up eZ Cash",    ["TOP UP YOUR", "eZ CASH ACCOUNT", "READY FOR YOUR", "NEXT QR PAYMENT"], "TOP UP NOW"]
+ ];
+ 
+ // Defaults for the first four lines, matching the original Small_Splash artwork.
+diff --git a/js/draw.js b/js/draw.js
+index 2b4b4a7..8e9a076 100644
+--- a/js/draw.js
++++ b/js/draw.js
+@@ -1,6 +1,6 @@
+-import { GRID, MARGIN, LOGO_RATIO, BTN_GRADIENT, FONTS } from './config.js';
++import { GRID, MARGIN, LOGO_RATIO, FONTS } from './config.js';
+ import { el, num } from './dom.js';
+-import { state } from './state.js';
++import { state, activeTheme } from './state.js';
+ 
+ export const logoImg = new Image();
+ 
+@@ -80,9 +80,10 @@ export function draw(c, scale, showBlink, collect) {
+   if (el('btnShow').checked) {
+     const w = num('btnW', 240), h = num('btnH', 52);
+     const x = num('btnX', 150) - w / 2, y = num('btnY', 216);
++    const theme = activeTheme();
+     const g = c.createLinearGradient(x, 0, x + w, 0);
+-    g.addColorStop(0, BTN_GRADIENT[0]);
+-    g.addColorStop(1, BTN_GRADIENT[1]);
++    g.addColorStop(0, theme.btn[0]);
++    g.addColorStop(1, theme.btn[1]);
+     c.fillStyle = g;
+     roundRect(c, x, y, w, h, num('btnR', 12));
+     c.fill();
+@@ -90,7 +91,7 @@ export function draw(c, scale, showBlink, collect) {
+     const t = el('btnText').value, pad = 20;
+     if (t) {
+       const cs = fitText(c, t, num('btnSize', 22), w - pad * 2);
+-      c.fillStyle = '#fff';
++      c.fillStyle = theme.btnText;
+       c.font = cs + 'px ' + fontFamily();
+       c.textAlign = state.btnAlign;
+       const cx = state.btnAlign === 'left' ? x + pad
+diff --git a/js/export.js b/js/export.js
+index 08c8da8..cc06e99 100644
+--- a/js/export.js
++++ b/js/export.js
+@@ -17,7 +17,7 @@ function frameData(size, showBlink) {
+   return cv.getContext('2d').getImageData(0, 0, size, size).data;
+ }
+ 
+-function download(blob, name) {
++export function download(blob, name) {
+   const a = document.createElement('a');
+   a.href = URL.createObjectURL(blob);
+   a.download = name;
+@@ -37,21 +37,106 @@ function fileBase() {
+   return custom || slug();
+ }
+ 
+-const outSize = () => Math.max(50, Math.round(num('outSize', 300)));
++export const outSize = () => Math.max(50, Math.round(num('outSize', 1200)));
+ 
+-export function initExport() {
+-  el('dlGif').addEventListener('click', () => {
+-    const size = outSize();
+-    const delay = Math.max(20, num('delay', 1000));
+-    const blinks = state.lines.some(l => l.blink && l.text);
+-    const frames = blinks
+-      ? [frameData(size, true), frameData(size, false)]
+-      : [frameData(size, true)];
+-    const bytes = encodeGIF(frames, size, size, Math.round(delay / 10));
+-    download(new Blob([bytes], { type: 'image/gif' }), fileBase() + '.gif');
+-  });
++/**
++ * CleverTap accepts uploads up to 500 KB. Exporting at the 300px display size
++ * was the real cause of the quality drop: the banner is rendered at 300 and
++ * then upscaled on a modern phone screen, which is what looks soft. Exporting
++ * at 1200 and letting the device scale *down* costs nothing in quality and
++ * still lands well inside the budget.
++ */
++export const SIZE_BUDGET = 500 * 1024;
++
++/** Sizes to fall back through when an export overshoots the budget. */
++const SIZE_LADDER = [1500, 1200, 900, 600, 450, 300];
++
++const kb = n => (n / 1024).toFixed(0) + ' KB';
++
++function setExportStatus(msg) {
++  const node = el('exportStatus');
++  if (node) node.textContent = msg;
++}
++
++/**
++ * Encode at the requested size, then step down the ladder until the result
++ * fits SIZE_BUDGET. Returns the bytes actually used plus the size they were
++ * rendered at, so the caller can report what happened.
++ */
++export async function encodeBudgeted(format, requested = outSize(), budget = SIZE_BUDGET) {
++  const ladder = [requested, ...SIZE_LADDER.filter(s => s < requested)];
++  let last = null;
++  for (const px of ladder) {
++    const data = format === 'gif' ? gifBytes(px) : await pngBytes(px);
++    last = { data, px, fits: data.length <= budget };
++    if (last.fits) return last;
++  }
++  return last;
++}
++
++/**
++ * Encode whatever is currently on the canvas as GIF bytes. Shared by the
++ * single download button and by batch export, so the two can never drift.
++ */
++export function gifBytes(size = outSize()) {
++  const delay = Math.max(20, num('delay', 1000));
++  const blinks = state.lines.some(l => l.blink && l.text);
++  const frames = blinks
++    ? [frameData(size, true), frameData(size, false)]
++    : [frameData(size, true)];
++  return encodeGIF(frames, size, size, Math.round(delay / 10));
++}
+ 
+-  el('dlPng').addEventListener('click', () => {
+-    offscreen(outSize(), true).toBlob(b => download(b, fileBase() + '.png'), 'image/png');
++/** PNG bytes for the current canvas, as a promise. */
++export function pngBytes(size = outSize()) {
++  return new Promise(resolve => {
++    offscreen(size, true).toBlob(
++      b => b.arrayBuffer().then(buf => resolve(new Uint8Array(buf))),
++      'image/png'
++    );
+   });
+ }
++
++/** True when the operator wants exports kept inside the upload budget. */
++const budgetOn = () => {
++  const box = el('fitBudget');
++  return box ? box.checked : true;
++};
++
++async function runExport(format) {
++  setExportStatus('Rendering…');
++  const mime = format === 'gif' ? 'image/gif' : 'image/png';
++
++  if (!budgetOn()) {
++    const data = format === 'gif' ? gifBytes() : await pngBytes();
++    download(new Blob([data], { type: mime }), fileBase() + '.' + format);
++    setExportStatus(`${format.toUpperCase()} at ${outSize()}px — ${kb(data.length)}`);
++    return;
++  }
++
++  const r = await encodeBudgeted(format);
++  download(new Blob([r.data], { type: mime }), fileBase() + '.' + format);
++  setExportStatus(
++    r.fits
++      ? `${format.toUpperCase()} at ${r.px}px — ${kb(r.data.length)}` +
++        (r.px < outSize() ? ' (scaled down to fit 500 KB)' : '')
++      : `${format.toUpperCase()} at ${r.px}px — ${kb(r.data.length)}, still over 500 KB. ` +
++        'Try a flatter theme: gradients cost far more than solid backgrounds.'
++  );
++}
++
++export function initExport() {
++  el('dlGif').addEventListener('click', () => runExport('gif'));
++  el('dlPng').addEventListener('click', () => runExport('png'));
++
++  const seg = el('sizeSeg');
++  if (seg) {
++    seg.querySelectorAll('button').forEach(b => {
++      b.addEventListener('click', () => {
++        el('outSize').value = b.dataset.size;
++        el('outSize').dispatchEvent(new Event('input', { bubbles: true }));
++        seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
++      });
++    });
++  }
++}
+diff --git a/js/layout.js b/js/layout.js
+index df777e5..0ff30fe 100644
+--- a/js/layout.js
++++ b/js/layout.js
+@@ -19,6 +19,7 @@ export function captureLayout() {
+       ({ text, size, x, y, color, align, blink })),
+     btnAlign: state.btnAlign,
+     lang: state.lang,
++    themeId: state.themeId,
+     fields: Object.fromEntries(FIELD_IDS.map(id => [id, el(id).value])),
+     checks: Object.fromEntries(CHECK_IDS.map(id => [id, el(id).checked]))
+   };
+@@ -34,6 +35,9 @@ export function applyLayout(data) {
+ 
+   state.lines = data.lines.map(cloneLine);
+   state.selected = null;
++  // themeId first, then the saved field values, so an explicit bg in the
++  // layout still wins over the theme's own background.
++  if (data.themeId) state.themeId = data.themeId;
+   state.btnAlign = (data.btnAlign === 'left' || data.btnAlign === 'right') ? data.btnAlign : 'center';
+   state.lang = (data.lang === 'si' || data.lang === 'ta') ? data.lang : 'en';
+ 
+diff --git a/js/main.js b/js/main.js
+index b15e479..e69c38a 100644
+--- a/js/main.js
++++ b/js/main.js
+@@ -1,6 +1,7 @@
+ import { PRESETS, LOGO_SRC, BUTTON_DEFAULTS } from './config.js';
++import { THEMES } from './themes.js';
+ import { el, setSeg } from './dom.js';
+-import { state, makeLine, applyCopy, resetButton } from './state.js';
++import { state, makeLine, applyCopy, applyTheme, resetButton } from './state.js';
+ import { logoImg } from './draw.js';
+ import { render } from './render.js';
+ import { renderControls, initControls } from './controls.js';
+@@ -8,6 +9,7 @@ import { initDrag } from './drag.js';
+ import { initExport } from './export.js';
+ import { initHistory, commit, commitDebounced } from './history.js';
+ import { initLayoutsPanel } from './layouts-panel.js';
++import { initBatch } from './batch.js';
+ 
+ const LIVE_INPUTS = [
+   'btnText', 'btnSize', 'btnX', 'btnY', 'btnW', 'btnH', 'btnR',
+@@ -46,6 +48,26 @@ function initInputs() {
+   });
+ }
+ 
++function initThemes() {
++  const seg = el('themeSeg');
++  if (!seg) return;
++  THEMES.forEach(t => {
++    const b = document.createElement('button');
++    b.type = 'button';
++    b.dataset.theme = t.id;
++    b.textContent = t.label;
++    b.classList.toggle('on', t.id === state.themeId);
++    b.addEventListener('click', () => {
++      applyTheme(t.id);
++      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
++      renderControls();
++      render();
++      commit();
++    });
++    seg.appendChild(b);
++  });
++}
++
+ function initLanguage() {
+   const seg = el('langSeg');
+   seg.querySelectorAll('button').forEach(b => {
+@@ -59,14 +81,16 @@ function initLanguage() {
+ }
+ 
+ function boot() {
+-  state.lines = PRESETS[3][1].map(makeLine);   // Savings creation, the original artwork
++  state.lines = PRESETS[2][1].map(makeLine);   // Savings creation, the original artwork
+   initPresets();
+   initInputs();
+   initControls();
+   initDrag();
+   initExport();
+   initLanguage();
++  initThemes();
+   initHistory();
++  initBatch();
+   initLayoutsPanel();
+   renderControls();
+ 
+diff --git a/js/state.js b/js/state.js
+index d014e14..c84ca3c 100644
+--- a/js/state.js
++++ b/js/state.js
+@@ -1,5 +1,6 @@
+ import { GRID, PLUM, BASE_LINES } from './config.js';
+ import { el, setSeg } from './dom.js';
++import { themeById, DEFAULT_THEME } from './themes.js';
+ 
+ /**
+  * A line is: { id, text, size, x, y, color, align, blink }
+@@ -9,6 +10,7 @@ export const state = {
+   lines: [],
+   btnAlign: 'center',
+   lang: 'en',        // 'en' | 'si' | 'ta' — picks the @font-face draw() uses
++  themeId: DEFAULT_THEME,  // colour treatment; see themes.js
+   selected: null,     // { kind:'line', idx } | { kind:'button' } | { kind:'logo' } | null
+   hits: []           // bounding boxes from the last draw, used for hit testing
+ };
+@@ -55,3 +57,20 @@ export function resetButton(defaults) {
+   state.btnAlign = 'center';
+   setSeg(el('btnAlign'), 'center');
+ }
++
++/** The theme object currently in force. */
++export function activeTheme() {
++  return themeById(state.themeId);
++}
++
++/**
++ * Switch colour treatment: repaints the background, every line and the button
++ * from the theme. Emphasis (blinking) lines take the accent colour, everything
++ * else takes the body colour, so the hierarchy survives the swap.
++ */
++export function applyTheme(id) {
++  state.themeId = themeById(id).id;
++  const t = activeTheme();
++  el('bg').value = t.bg;
++  state.lines.forEach(L => { L.color = L.blink ? t.accent : t.text; });
++}
+diff --git a/js/themes.js b/js/themes.js
+new file mode 100644
+index 0000000..9c3524c
+--- /dev/null
++++ b/js/themes.js
+@@ -0,0 +1,72 @@
++import { PLUM, MAGENTA } from './config.js';
++
++/**
++ * A theme is the whole colour treatment of a banner in one object: page
++ * background, the two text colours, the button gradient and its label colour.
++ *
++ * Creative fatigue is mostly a *visual* problem — the same layout in the same
++ * colours stops registering after a couple of weeks even when the copy changes.
++ * Switching theme gives the same copy a different treatment in one click, which
++ * is the cheapest refresh available.
++ *
++ *   id       stable key, stored in saved layouts
++ *   label    what the operator sees
++ *   bg       canvas background
++ *   text     colour applied to normal lines
++ *   accent   colour applied to blinking / emphasis lines
++ *   btn      [from, to] button gradient, left to right
++ *   btnText  button label colour
++ */
++export const THEMES = [
++  {
++    id: 'classic',
++    label: 'Classic light',
++    bg: '#FFFFFF',
++    text: PLUM,
++    accent: MAGENTA,
++    btn: ['#4C055E', '#BB0149'],
++    btnText: '#FFFFFF'
++  },
++  {
++    id: 'inverted',
++    label: 'Inverted plum',
++    bg: '#5D0253',
++    text: '#FFFFFF',
++    accent: '#FFC8E6',
++    btn: ['#FFFFFF', '#FFFFFF'],
++    btnText: '#5D0253'
++  },
++  {
++    id: 'magenta',
++    label: 'Magenta block',
++    bg: '#D3064F',
++    text: '#FFFFFF',
++    accent: '#FFE07A',
++    btn: ['#FFFFFF', '#FFFFFF'],
++    btnText: '#D3064F'
++  },
++  {
++    id: 'ink',
++    label: 'Ink on cream',
++    bg: '#FBF3E9',
++    text: '#2B0F33',
++    accent: '#D3064F',
++    btn: ['#2B0F33', '#5D0253'],
++    btnText: '#FFFFFF'
++  },
++  {
++    id: 'gold',
++    label: 'Plum and gold',
++    bg: '#3B0140',
++    text: '#FFFFFF',
++    accent: '#F5C451',
++    btn: ['#F5C451', '#E0A32C'],
++    btnText: '#3B0140'
++  }
++];
++
++export const DEFAULT_THEME = 'classic';
++
++export function themeById(id) {
++  return THEMES.find(t => t.id === id) || THEMES[0];
++}
+diff --git a/js/zip.js b/js/zip.js
+new file mode 100644
+index 0000000..f1fe73e
+--- /dev/null
++++ b/js/zip.js
+@@ -0,0 +1,78 @@
++/**
++ * A minimal ZIP writer, store method only (no compression).
++ *
++ * Every file going in here is already a compressed image (GIF or PNG), so
++ * deflating again would cost CPU and save nothing. Store keeps this to a
++ * hundred lines with no dependency, which matters because the whole editor
++ * ships as one self-contained HTML file.
++ */
++
++const CRC_TABLE = (() => {
++  const t = new Uint32Array(256);
++  for (let n = 0; n < 256; n++) {
++    let c = n;
++    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
++    t[n] = c >>> 0;
++  }
++  return t;
++})();
++
++function crc32(bytes) {
++  let c = 0xFFFFFFFF;
++  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
++  return (c ^ 0xFFFFFFFF) >>> 0;
++}
++
++/** DOS time/date fields, as required by the ZIP local header. */
++function dosStamp(d = new Date()) {
++  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
++  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
++  return { time, date };
++}
++
++class ByteWriter {
++  constructor() { this.parts = []; this.length = 0; }
++  bytes(b) { this.parts.push(b); this.length += b.length; return this; }
++  u16(v) { return this.bytes(new Uint8Array([v & 0xFF, (v >>> 8) & 0xFF])); }
++  u32(v) {
++    return this.bytes(new Uint8Array([v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF]));
++  }
++  blob(type) { return new Blob(this.parts, { type }); }
++}
++
++/**
++ * @param files [{ name, data }] where data is a Uint8Array
++ * @returns Blob of a .zip
++ */
++export function makeZip(files) {
++  const enc = new TextEncoder();
++  const { time, date } = dosStamp();
++  const w = new ByteWriter();
++  const central = [];
++
++  files.forEach(f => {
++    const nameBytes = enc.encode(f.name);
++    const crc = crc32(f.data);
++    const offset = w.length;
++
++    w.u32(0x04034B50).u16(20).u16(0).u16(0).u16(time).u16(date);
++    w.u32(crc).u32(f.data.length).u32(f.data.length);
++    w.u16(nameBytes.length).u16(0).bytes(nameBytes).bytes(f.data);
++
++    central.push({ nameBytes, crc, size: f.data.length, offset });
++  });
++
++  const dirStart = w.length;
++  central.forEach(e => {
++    w.u32(0x02014B50).u16(20).u16(20).u16(0).u16(0).u16(time).u16(date);
++    w.u32(e.crc).u32(e.size).u32(e.size);
++    w.u16(e.nameBytes.length).u16(0).u16(0).u16(0).u16(0).u32(0).u32(e.offset);
++    w.bytes(e.nameBytes);
++  });
++  const dirSize = w.length - dirStart;
++
++  w.u32(0x06054B50).u16(0).u16(0).u16(central.length).u16(central.length);
++  w.u32(dirSize).u32(dirStart).u16(0);
++
++  return w.blob('application/zip');
++}
