@@ -20,13 +20,20 @@ export const LANGUAGES = [
 ];
 
 // Journey presets: [label, lines, cta]
+//
+// Reward copy is tied to QR transactions only, never to opening a savings
+// account: 1GB per QR payment, first 3 payments each day, up to 10GB a month.
+// Keep account-creation presets free of any prize claim.
 export const PRESETS = [
-  ["eZ Cash creation", ["CREATE YOUR", "eZ CASH ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "CREATE NOW"],
-  ["Just Pay",         ["LINK YOUR", "BANK ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "LINK NOW"],
-  ["1st QR payment",   ["MAKE YOUR", "1ST QR PAYMENT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "SCAN & PAY NOW"],
-  ["Savings creation", ["CREATE YOUR DIGITAL", "SAVINGS ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "CREATE NOW"],
-  ["Top up savings",   ["TOP UP YOUR", "SAVINGS ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "TOP UP NOW"],
-  ["Top up eZ Cash",   ["TOP UP YOUR", "eZ CASH ACCOUNT", "SCAN & PAY", "WIN 10GB EVERY MONTH"], "TOP UP NOW"]
+  ["eZ Cash creation",  ["CREATE YOUR", "eZ CASH ACCOUNT", "GET 1GB", "INSTANTLY"], "GET STARTED"],
+  ["Just Pay",          ["LINK YOUR", "BANK ACCOUNT", "PAY STRAIGHT FROM", "YOUR OWN BANK"], "LINK NOW"],
+  ["Savings creation",  ["OPEN YOUR", "DIGITAL SAVINGS", "ACCOUNT", "RIGHT INSIDE MYDIALOG"], "CREATE NOW"],
+  ["QR — first scan",   ["EVERY SCAN", "= 1GB", "FIRST 3 QR PAYMENTS DAILY", "UP TO 10GB A MONTH"], "SCAN & PAY"],
+  ["QR — daily habit",  ["3 SCANS.", "3GB. EVERY DAY.", "1GB PER QR PAYMENT", "UP TO 10GB A MONTH"], "START SCANNING"],
+  ["QR — win back",     ["YOUR 1GB IS", "ONE SCAN AWAY", "EVERY QR PAYMENT EARNS DATA", "UP TO 10GB A MONTH"], "SCAN NOW"],
+  ["QR — heavy user",   ["UP TO", "10GB A MONTH", "1GB PER QR PAYMENT", "FIRST 3 PAYMENTS EACH DAY"], "PAY WITH QR"],
+  ["Top up savings",    ["TOP UP YOUR", "SAVINGS ACCOUNT", "READY FOR YOUR", "NEXT QR PAYMENT"], "TOP UP NOW"],
+  ["Top up eZ Cash",    ["TOP UP YOUR", "eZ CASH ACCOUNT", "READY FOR YOUR", "NEXT QR PAYMENT"], "TOP UP NOW"]
 ];
 
 // Defaults for the first four lines, matching the original Small_Splash artwork.

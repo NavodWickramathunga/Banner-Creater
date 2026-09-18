@@ -1,6 +1,6 @@
-import { GRID, MARGIN, LOGO_RATIO, BTN_GRADIENT, FONTS } from './config.js';
+import { GRID, MARGIN, LOGO_RATIO, FONTS } from './config.js';
 import { el, num } from './dom.js';
-import { state } from './state.js';
+import { state, activeTheme } from './state.js';
 
 export const logoImg = new Image();
 
@@ -80,9 +80,10 @@ export function draw(c, scale, showBlink, collect) {
   if (el('btnShow').checked) {
     const w = num('btnW', 240), h = num('btnH', 52);
     const x = num('btnX', 150) - w / 2, y = num('btnY', 216);
+    const theme = activeTheme();
     const g = c.createLinearGradient(x, 0, x + w, 0);
-    g.addColorStop(0, BTN_GRADIENT[0]);
-    g.addColorStop(1, BTN_GRADIENT[1]);
+    g.addColorStop(0, theme.btn[0]);
+    g.addColorStop(1, theme.btn[1]);
     c.fillStyle = g;
     roundRect(c, x, y, w, h, num('btnR', 12));
     c.fill();
@@ -90,7 +91,7 @@ export function draw(c, scale, showBlink, collect) {
     const t = el('btnText').value, pad = 20;
     if (t) {
       const cs = fitText(c, t, num('btnSize', 22), w - pad * 2);
-      c.fillStyle = '#fff';
+      c.fillStyle = theme.btnText;
       c.font = cs + 'px ' + fontFamily();
       c.textAlign = state.btnAlign;
       const cx = state.btnAlign === 'left' ? x + pad

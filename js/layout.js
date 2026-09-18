@@ -19,6 +19,7 @@ export function captureLayout() {
       ({ text, size, x, y, color, align, blink })),
     btnAlign: state.btnAlign,
     lang: state.lang,
+    themeId: state.themeId,
     fields: Object.fromEntries(FIELD_IDS.map(id => [id, el(id).value])),
     checks: Object.fromEntries(CHECK_IDS.map(id => [id, el(id).checked]))
   };
@@ -34,6 +35,9 @@ export function applyLayout(data) {
 
   state.lines = data.lines.map(cloneLine);
   state.selected = null;
+  // themeId first, then the saved field values, so an explicit bg in the
+  // layout still wins over the theme's own background.
+  if (data.themeId) state.themeId = data.themeId;
   state.btnAlign = (data.btnAlign === 'left' || data.btnAlign === 'right') ? data.btnAlign : 'center';
   state.lang = (data.lang === 'si' || data.lang === 'ta') ? data.lang : 'en';
 

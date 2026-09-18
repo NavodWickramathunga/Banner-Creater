@@ -1,5 +1,6 @@
 import { GRID, PLUM, BASE_LINES } from './config.js';
 import { el, setSeg } from './dom.js';
+import { themeById, DEFAULT_THEME } from './themes.js';
 
 /**
  * A line is: { id, text, size, x, y, color, align, blink }
@@ -9,6 +10,7 @@ export const state = {
   lines: [],
   btnAlign: 'center',
   lang: 'en',        // 'en' | 'si' | 'ta' — picks the @font-face draw() uses
+  themeId: DEFAULT_THEME,  // colour treatment; see themes.js
   selected: null,     // { kind:'line', idx } | { kind:'button' } | { kind:'logo' } | null
   hits: []           // bounding boxes from the last draw, used for hit testing
 };
@@ -54,4 +56,21 @@ export function resetButton(defaults) {
   el('btnR').value = defaults.r;
   state.btnAlign = 'center';
   setSeg(el('btnAlign'), 'center');
+}
+
+/** The theme object currently in force. */
+export function activeTheme() {
+  return themeById(state.themeId);
+}
+
+/**
+ * Switch colour treatment: repaints the background, every line and the button
+ * from the theme. Emphasis (blinking) lines take the accent colour, everything
+ * else takes the body colour, so the hierarchy survives the swap.
+ */
+export function applyTheme(id) {
+  state.themeId = themeById(id).id;
+  const t = activeTheme();
+  el('bg').value = t.bg;
+  state.lines.forEach(L => { L.color = L.blink ? t.accent : t.text; });
 }
