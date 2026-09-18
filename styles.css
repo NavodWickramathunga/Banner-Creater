@@ -1,0 +1,87 @@
+@font-face{
+  font-family:'BannerFont';
+  src:url('../assets/banner-font.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:block;
+}
+@font-face{
+  font-family:'SinhalaFont';
+  src:url('../assets/sinhala-font.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:block;
+}
+@font-face{
+  font-family:'TamilFont';
+  src:url('../assets/tamil-font.woff2') format('woff2');
+  font-weight:700;font-style:normal;font-display:block;
+}
+  :root{
+    --plum:#5D0253; --magenta:#D3064F; --ink:#2A1B29;
+    --line:#E4DCE3; --paper:#FBF8FA; --mute:#8A7788;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 24px 80px;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+       background:var(--paper);color:var(--ink)}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:19px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em}
+  .lede{font-size:13px;color:#7A6A78;margin:0 0 28px;max-width:66ch;line-height:1.5}
+  .cols{display:grid;grid-template-columns:340px 1fr;gap:40px;align-items:start}
+  @media (max-width:880px){.cols{grid-template-columns:1fr}}
+
+  .stage{position:sticky;top:32px}
+  .frame{display:inline-block;line-height:0;
+    background-image:linear-gradient(45deg,#EFE9ED 25%,transparent 25%,transparent 75%,#EFE9ED 75%),
+                     linear-gradient(45deg,#EFE9ED 25%,transparent 25%,transparent 75%,#EFE9ED 75%);
+    background-size:16px 16px;background-position:0 0,8px 8px;border:1px solid var(--line)}
+  canvas#preview{width:300px;height:300px;display:block;cursor:grab;touch-action:none}
+  canvas#preview.dragging{cursor:grabbing}
+  .meta{font-size:11px;color:#9B8C99;margin-top:8px}
+  .warn{font-size:12px;color:var(--magenta);font-weight:600;min-height:16px;margin-top:10px;line-height:1.4}
+
+  fieldset{border:0;padding:0;margin:0 0 28px}
+  legend{font-size:12px;font-weight:800;color:var(--plum);padding:0 0 12px;letter-spacing:.02em}
+  label{display:block;font-size:10px;font-weight:700;color:#A0919E;letter-spacing:.03em;margin-bottom:4px}
+  input[type=text],input[type=number],input[type=password],select,textarea{
+    width:100%;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;
+    border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  textarea{font-weight:500;line-height:1.45;resize:vertical;min-height:64px}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--magenta);outline-offset:1px;border-color:transparent}
+  .field{margin-bottom:14px}
+  .hint{font-size:11px;color:#9B8C99;margin-top:6px;line-height:1.45}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+  .card.sel{border-color:var(--plum);box-shadow:0 0 0 2px rgba(93,2,83,.09)}
+  .card .top{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .card .top input{flex:1}
+  .grid4{display:grid;grid-template-columns:60px 56px 56px 1fr;gap:8px;align-items:end}
+  .grid3{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;margin-top:10px}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
+  .seg button{border:0;border-radius:0;background:#fff;color:var(--mute);font-size:11px;font-weight:700;padding:8px 0;cursor:pointer;font-family:inherit}
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--plum);color:#fff}
+  .icon{border:1px solid var(--line);background:#fff;color:var(--mute);border-radius:6px;
+        width:30px;height:30px;font-size:14px;font-weight:700;cursor:pointer;padding:0;line-height:1}
+  .icon:hover{border-color:var(--plum);color:var(--plum)}
+  .icon.danger:hover{border-color:var(--magenta);color:var(--magenta)}
+  .blinkrow{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--mute);margin-top:10px}
+
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  button.action{font:inherit;font-size:13px;font-weight:700;padding:11px 18px;border-radius:8px;border:1px solid transparent;cursor:pointer}
+  .primary{background:linear-gradient(90deg,#4C055E,#BB0149);color:#fff}
+  .ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+  button.action:disabled{opacity:.5;cursor:default}
+  .add{width:100%;padding:11px;border:1px dashed var(--line);background:#fff;border-radius:8px;
+       font:inherit;font-size:13px;font-weight:700;color:var(--plum);cursor:pointer}
+  .add:hover{border-color:var(--plum)}
+
+  .opt{width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:8px;
+       padding:11px 13px;margin-bottom:8px;cursor:pointer;font:inherit;font-size:12px;line-height:1.5;color:var(--ink)}
+  .opt:hover{border-color:var(--plum);background:#FDFAFC}
+  .opt b{display:block;font-size:13px;font-weight:800;color:var(--plum);letter-spacing:.01em}
+  .status{font-size:12px;color:var(--mute);margin-top:8px;min-height:15px}
+  .status.err{color:var(--magenta);font-weight:600}
+
+/* Batch export tick lists and section sub-labels */
+.ticks{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 10px;margin:4px 0 10px}
+.tick{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;line-height:1.3}
+.tick input{margin:0;flex:none}
+label.sub{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;opacity:.6;margin-top:6px}

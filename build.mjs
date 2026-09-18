@@ -18,6 +18,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const MODULE_ORDER = [
   'js/gif-encoder.js',
   'js/config.js',
+  'js/themes.js',
   'js/dom.js',
   'js/state.js',
   'js/layout.js',
@@ -28,6 +29,8 @@ const MODULE_ORDER = [
   'js/layouts-panel.js',
   'js/drag.js',
   'js/export.js',
+  'js/zip.js',
+  'js/batch.js',
   'js/main.js'
 ];
 

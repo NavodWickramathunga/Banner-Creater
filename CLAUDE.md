@@ -30,6 +30,7 @@ Vanilla ES modules, no framework, no dependencies, no build step for development
 index.html          markup and control ids only, no logic
 css/styles.css      all styling; @font-face points at assets/*.woff2
 js/config.js        grid size, brand colours, journey presets, per-language fonts, defaults
+js/themes.js        colour treatments (background, copy, accent, button) as one-click themes
 js/dom.js           el() / num() / setSeg() helpers
 js/state.js         the lines array, selection, button alignment, language
 js/draw.js          all canvas painting; the single source of truth for layout
@@ -40,6 +41,8 @@ js/layout.js        capture/apply the full editor state as one plain object
 js/history.js       undo/redo stack built on layout.js snapshots
 js/layouts-panel.js named saved layouts (localStorage) plus JSON export/import
 js/export.js        GIF and PNG download, with an optional custom file name
+js/zip.js           store-only ZIP writer used by batch export
+js/batch.js         batch export: journeys x languages x themes, zipped in one pass
 js/gif-encoder.js   self-contained animated GIF encoder
 js/main.js          wiring and boot
 ```
@@ -120,9 +123,49 @@ they're a few dozen KB rather than a full multi-script family.
   dependents. The bundler concatenates and strips module syntax; it relies on
   every top-level name being unique across `js/`.
 
+### Themes
+
+`js/themes.js` holds the colour treatments. A theme is background + body colour
++ accent colour + button gradient + button label colour. `applyTheme()` in
+`state.js` repaints the background input and recolours every line — blinking
+(emphasis) lines take the accent, the rest take the body colour — so the
+hierarchy survives the swap. `draw()` reads the button gradient from
+`activeTheme()`, never from a constant.
+
+Themes exist because creative fatigue is mostly visual. The same layout in the
+same colours stops registering after roughly two weeks even when the copy
+changes, so a one-click recolour is the cheapest refresh available.
+
+`themeId` is part of the layout snapshot, so saved layouts, imports and undo
+steps all carry their treatment with them.
+
+### Batch export
+
+`js/batch.js` renders every ticked journey x language x theme and hands back one
+ZIP. It drives the same `applyCopy()`/`applyTheme()` path the operator would
+click and the same `gifBytes()`/`pngBytes()` the download buttons use, so a
+batch file is byte-identical to a manual export. The live editor state is
+snapshotted with `captureLayout()` first and restored in a `finally` block.
+
+It uses each journey's default line positions rather than whatever is on the
+canvas, because the presets differ in line count and force-fitting one geometry
+across all of them produces overflow.
+
+`js/zip.js` is store-only on purpose: GIF and PNG are already compressed, so
+deflate would cost CPU for nothing.
+
+## Copy rules
+
+Reward copy is tied to QR transactions only, never to opening a savings account
+(CBSL). The mechanic is 1GB per QR payment, first 3 payments each day, up to
+10GB a month. Write "up to 10GB a month", never "10GB every month" — day 4 pays
+only 1GB, so a user doing 3 scans a day for 4 days would otherwise expect 12GB.
+Account-creation presets carry no prize claim at all.
+
 ## Ideas not yet built
 
 - Other placement sizes (leaderboard, half-page) — the grid constant would need
   to become a width/height pair.
-- Batch export: one click producing all six journeys from the same layout.
 - Rename/reorder for saved layouts in the Layouts panel (currently save/load/delete only).
+- A per-theme logo variant: the plum and magenta themes would read better with a
+  reversed (white) logo lockup than the standard one on a white chip.
